@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}التداول{% endblock %}
+{% block content %}
+<section class="card stockbar">
+  <div>
+    <h1>{{ stock.company }} <span class="sym">{{ stock.symbol }}</span></h1>
+    <div class="muted">{{ stock.exchange }} · المصدر: {{ stock.source }} · {{ stock.period }}</div>
+  </div>
+  <div class="progress">
+    <div>المرحلة <b>{{ p.decisions_done + 1 }}</b> من <b>{{ p.decisions_total }}</b></div>
+    <div class="bar"><span style="width: {{ (p.decisions_done / p.decisions_total * 100)|round(1) }}%"></span></div>
+    <div class="muted">آخر شمعة ظاهرة: <b dir="ltr">{{ last.date }}</b></div>
+  </div>
+</section>
+
+<div class="grid">
+  <section class="card chart-card">
+    <div class="toolbar">
+      <button type="button" class="btn sm" data-zoom="in" title="تكبير">＋</button>
+      <button type="button" class="btn sm" data-zoom="out" title="تصغير">－</button>
+      <button type="button" class="btn sm" data-zoom="all">عرض الكل</button>
+      <span class="legend"><span class="up">■ شمعة صاعدة</span> <span class="down">■ شمعة هابطة</span></span>
+    </div>
+    <div class="chart-wrap" dir="ltr"><canvas id="chart" aria-label="رسم الشموع اليابانية"></canvas>
+      <div id="tip" class="tip" hidden></div></div>
+    <p class="hint">الأسعار والرصيد بالدولار الأمريكي كما في السوق الحقيقي. مرّر على شمعة (أو المسها) لرؤية سعر الافتتاح والأعلى والأدنى والإغلاق. ▲ شراء ▼ بيع.</p>
+    <p class="last">آخر إغلاق معروف: <b dir="ltr">{{ "%.2f"|format(last.close) }} $</b> للسهم الواحد</p>
+  </section>
+
+  <aside class="side">
+    <section class="card">
+      <h2>محفظتي</h2>
+      <dl class="stats">
+        <dt>الرصيد النقدي المتاح</dt><dd id="cash">{{ usd(p.cash) }}</dd>
+        <dt>السهم المملوك</dt><dd>{{ stock.symbol }}</dd>
+        <dt>كمية الأسهم</dt><dd id="shares">{{ p.shares }}</dd>
+        <dt>متوسط سعر الشراء</dt><dd>{% if p.shares %}{{ usd(p.avg_cost) }} للسهم{% else %}—{% endif %}</dd>
+        <dt>تكلفة الأسهم المملوكة</dt><dd>{{ usd(p.cost_basis) }}</dd>
+        <dt>القيمة السوقية للأسهم</dt><dd>{{ usd(p.market_value) }}</dd>
+        <dt>القيمة الحالية للمحفظة</dt><dd><b id="total">{{ usd(p.total) }}</b></dd>
+        <dt>ربح/خسارة محققة</dt><dd class="{{ 'pos' if p.realized > 0 else 'neg' if p.realized < 0 }}">{{ usd(p.realized) }}</dd>
+        <dt>ربح/خسارة غير محققة</dt><dd class="{{ 'pos' if p.unrealized > 0 else 'neg' if p.unrealized < 0 }}">{{ usd(p.unrealized) }}</dd>
+        <dt>العائد حتى الآن</dt><dd class="{{ 'pos' if p.pnl > 0 else 'neg' if p.pnl < 0 }}">{{ pct(p.return_pct) }}</dd>
+      </dl>
+      <p class="muted small">القيمة الحالية مقوّمة بسعر آخر إغلاق ظاهر. العمولات مُهملة في هذه النسخة.</p>
+    </section>
+
+    <section class="card decide">
+      <h2>قراري لهذه المرحلة</h2>
+      <form method="post" id="tradeForm">
+        <input type="hidden" name="step" value="{{ p.step }}">
+        <label for="qty">عدد الأسهم</label>
+        <input type="number" id="qty" name="qty" min="1" step="1" value="1" inputmode="numeric">
+        <p class="muted small" id="est" data-unit="{{ (last.close * 100)|round|int }}" data-cash="{{ p.cash }}" data-shares="{{ p.shares }}"></p>
+        <div class="btns">
+          <button class="btn buy" name="action" value="buy">شراء</button>
+          <button class="btn sell" name="action" value="sell" {% if not p.shares %}disabled{% endif %}>بيع</button>
+          <button class="btn wait" name="action" value="wait">انتظار</button>
+        </div>
+      </form>
+      <p class="rule">⚖️ يُنفَّذ قرارك بسعر <b>افتتاح الشمعة التالية</b> (التي لم تظهر بعد)، ثم تُكشف هذه الشمعة.
+        كل قرار (حتى الانتظار) ينقلك إلى الشمعة التالية. إذا لم يكفِ الرصيد يُنفَّذ أكبر عدد ممكن من الأسهم.</p>
+    </section>
+  </aside>
+</div>
+
+<section class="card">
+  <h2>سجل صفقاتي</h2>
+  {% if trades %}
+  <div class="tbl"><table>
+    <thead><tr><th>التاريخ</th><th>العملية</th><th>الكمية</th><th>سعر التنفيذ ($)</th><th>المبلغ ($)</th><th>ربح/خسارة محققة ($)</th></tr></thead>
+    <tbody>
+    {% for t in trades|reverse %}
+      <tr><td dir="ltr">{{ t['trade_date'] }}</td>
+        <td class="{{ 'pos' if t['side']=='buy' else 'neg' }}">{{ 'شراء' if t['side']=='buy' else 'بيع' }}</td>
+        <td>{{ t['qty'] }}</td><td dir="ltr">{{ "%.2f"|format(t['price_usd']) }}</td>
+        <td>{{ usd(t['amount']) }}</td>
+        <td class="{{ 'pos' if (t['realized'] or 0) > 0 else 'neg' if (t['realized'] or 0) < 0 }}">{% if t['realized'] is not none %}{{ usd(t['realized']) }}{% else %}—{% endif %}</td></tr>
+    {% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="muted">لا توجد صفقات بعد.</p>{% endif %}
+</section>
+
+<script id="chart-data" type="application/json">{{ chart|tojson }}</script>
+<script src="{{ url_for('static', filename='chart.js') }}"></script>
+<script>
+(function(){
+  var f=document.getElementById('tradeForm'), q=document.getElementById('qty'), e=document.getElementById('est');
+  var unit=+e.dataset.unit, cash=+e.dataset.cash, sh=+e.dataset.shares;
+  function fmt(c){return (c/100).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function upd(){var n=Math.max(0,Math.floor(+q.value||0));
+    e.textContent='تكلفة تقديرية بسعر آخر إغلاق: '+fmt(n*unit)+' $ · الحد الأقصى التقديري للشراء: '+Math.floor(cash/unit)+' سهم · تملك: '+sh+' سهم';}
+  q.addEventListener('input',upd); upd();
+  var sent=false; f.addEventListener('submit',function(ev){ if(sent){ev.preventDefault();return;} sent=true;
+    setTimeout(function(){f.querySelectorAll('button').forEach(function(b){b.disabled=true;});},0);});
+})();
+</script>
+{% endblock %}

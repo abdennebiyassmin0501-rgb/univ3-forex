@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}محاكاة التداول{% endblock %} — الشموع اليابانية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand">📊 محاكاة التداول بالشموع اليابانية</div>
+    {% if u %}
+    <nav class="nav">
+      <span class="who">👤 {{ u['display_name'] }}</span>
+      <a href="{{ url_for('trade') }}">التداول</a>
+      <a href="{{ url_for('result') }}">النتيجة والترتيب</a>
+      <a href="{{ url_for('logout') }}">خروج</a>
+    </nav>
+    {% endif %}
+  </div>
+</header>
+<main class="wrap">
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+    {% for cat, m in msgs %}<div class="flash {{ cat }}" role="status">{{ m }}</div>{% endfor %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+<footer class="wrap foot">
+  تداول افتراضي لأغراض تعليمية فقط — لا تُرسل أي أوامر إلى البورصة، ولا تؤثر قرارات الطلبة على الأسعار.
+  البيانات تاريخية حقيقية من {{ stock.source }} وليست آنية.
+</footer>
+</body>
+</html>

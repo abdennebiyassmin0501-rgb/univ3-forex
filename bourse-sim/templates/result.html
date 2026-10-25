@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}النتيجة النهائية{% endblock %}
+{% block content %}
+{% if r.finished %}
+<section class="card">
+  <h1>النتيجة النهائية</h1>
+  <div class="hero {{ 'pos' if r.pnl > 0 else 'neg' if r.pnl < 0 }}">
+    <div class="big">{{ pct(r.return_pct) }}</div>
+    <div>{% if r.pnl > 0 %}حققت ربحًا{% elif r.pnl < 0 %}تكبّدت خسارة{% else %}لا ربح ولا خسارة{% endif %} قدره <b>{{ usd(r.pnl) }}</b></div>
+  </div>
+  <dl class="stats two">
+    <dt>رأس المال الأولي</dt><dd>{{ usd(r.initial) }}</dd>
+    <dt>الرصيد النقدي المتبقي</dt><dd>{{ usd(r.cash) }}</dd>
+    <dt>الأسهم المتبقية</dt><dd>{{ r.shares }}</dd>
+    <dt>القيمة السوقية للأسهم المتبقية</dt><dd>{{ usd(r.market_value) }}</dd>
+    <dt>القيمة النهائية للمحفظة</dt><dd><b>{{ usd(r.total) }}</b></dd>
+    <dt>صافي الربح أو الخسارة</dt><dd class="{{ 'pos' if r.pnl > 0 else 'neg' if r.pnl < 0 }}">{{ usd(r.pnl) }}</dd>
+    <dt>نسبة العائد</dt><dd>{{ pct(r.return_pct) }}</dd>
+    <dt>منها ربح/خسارة محققة</dt><dd>{{ usd(r.realized) }}</dd>
+    <dt>عدد الصفقات المنفذة</dt><dd>{{ r.n_trades }} ({{ r.n_buys }} شراء، {{ r.n_sells }} بيع)</dd>
+    <dt>صفقات بيع رابحة / خاسرة</dt><dd>{{ r.n_win }} / {{ r.n_loss }}</dd>
+  </dl>
+  <p class="muted small">القيمة النهائية = الرصيد النقدي + القيمة السوقية للأسهم المملوكة.
+    الأسهم المتبقية قُيِّمت بسعر إغلاق آخر شمعة في الفترة ({{ last.date }}: {{ "%.2f"|format(last.close) }}$).
+    الصفقة الرابحة/الخاسرة تُحسب عند البيع: قيمة البيع − تكلفة الأسهم المباعة (بمتوسط سعر الشراء). العمولات مُهملة.</p>
+  {% if r.trades %}
+  <h2>سجل مختصر للعمليات</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>التاريخ</th><th>العملية</th><th>الكمية</th><th>السعر ($)</th><th>المبلغ ($)</th><th>ربح/خسارة ($)</th></tr></thead>
+    <tbody>{% for t in r.trades %}
+      <tr><td dir="ltr">{{ t['trade_date'] }}</td><td>{{ 'شراء' if t['side']=='buy' else 'بيع' }}</td><td>{{ t['qty'] }}</td>
+      <td dir="ltr">{{ "%.2f"|format(t['price_usd']) }}</td><td>{{ usd(t['amount']) }}</td>
+      <td>{% if t['realized'] is not none %}{{ usd(t['realized']) }}{% else %}—{% endif %}</td></tr>
+    {% endfor %}</tbody></table></div>
+  {% endif %}
+</section>
+{% else %}
+<section class="card">
+  <h1>النتيجة النهائية</h1>
+  <p>لم تنتهِ المحاكاة بعد: أنجزت <b>{{ r.decisions_done }}</b> من <b>{{ r.decisions_total }}</b> مرحلة.
+    تظهر النتيجة النهائية بعد آخر شمعة.</p>
+  <p>قيمة محفظتك حاليًا: <b>{{ usd(r.total) }}</b> ({{ pct(r.return_pct) }}).</p>
+  <a class="btn primary" href="{{ url_for('trade') }}">متابعة التداول</a>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>لوحة الترتيب</h2>
+  <p class="muted small">الترتيب حسب نسبة العائد. لمن لم يُنهِ بعد، تُحسب القيمة بسعر آخر شمعة وصل إليها. لا تُعرض تفاصيل صفقات أي طالب.</p>
+  <div class="tbl"><table class="board">
+    <thead><tr><th>#</th><th>اسم المستخدم</th><th>نسبة العائد</th><th>الحالة</th></tr></thead>
+    <tbody>{% for b in board %}
+      <tr class="{{ 'me' if b.name == u['display_name'] }}"><td>{{ loop.index }}</td><td>{{ b.name }}</td>
+      <td class="{{ 'pos' if b.return_pct > 0 else 'neg' if b.return_pct < 0 }}" dir="ltr">{{ pct(b.return_pct) }}</td>
+      <td>{% if b.finished %}انتهى{% else %}جارٍ ({{ b.progress }}/{{ b.total }}){% endif %}</td></tr>
+    {% endfor %}</tbody></table></div>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}الدخول{% endblock %}
+{% block content %}
+<section class="login card">
+  <h1>الدخول إلى المحاكاة</h1>
+  <p class="muted">أدخل اسم المستخدم. إذا كان الاسم جديدًا يُنشأ لك حساب برصيد افتراضي قدره
+    <b>{{ initial_usd }} دولار أمريكي ($)</b>، وإذا كان موجودًا يُفتح حسابك السابق.</p>
+  <form method="post" class="login-form">
+    <label for="username">اسم المستخدم</label>
+    <input id="username" name="username" value="{{ username }}" maxlength="30" required autofocus autocomplete="off">
+    <button type="submit" class="btn primary">دخول</button>
+  </form>
+  <p class="note">تنبيه: هذا دخول مبسّط للتجربة الجامعية وليس نظام حماية؛ استعمل اسمًا خاصًا بك ولا تستعمل اسم زميلك.</p>
+  <div class="stockinfo">
+    <div><span>السهم</span><b>{{ stock.company }} ({{ stock.symbol }})</b></div>
+    <div><span>السوق</span><b>{{ stock.exchange }}</b></div>
+    <div><span>الفترة</span><b>{{ stock.period }}</b></div>
+    <div><span>المصدر</span><b>{{ stock.source }}</b></div>
+  </div>
+</section>
+{% endblock %}
